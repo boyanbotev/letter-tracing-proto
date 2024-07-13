@@ -5,19 +5,24 @@ using UnityEngine;
 using UnityEngine.Splines;
 using Unity.Mathematics;
 using System;
+using UnityEngine.UIElements;
 
 public class MoveOnSpline : MonoBehaviour
 {
     [SerializeField] private SplineContainer spline;
+    [SerializeField] private LineRenderer lineRenderer;
 
     private bool isActive = false;
     private bool isCompleted = false;
     private float lastT = 0;
-    private Vector3 initialPos;
+    private float minDifference = 0.005f;
+    private float maxDifference = 0.02f;
+    private float finishPerecentage = 0.98f;
 
     private void Awake()
     {
-        initialPos = transform.position = SplineUtility.EvaluatePosition(spline.Spline, 0);
+        transform.position = SplineUtility.EvaluatePosition(spline.Spline, 0);
+        AddLinePosition(transform.position);
     }
 
     void Update() {
@@ -35,12 +40,11 @@ public class MoveOnSpline : MonoBehaviour
         else if (isActive)
         {
             isActive = false;
-            transform.position = initialPos;
         }
 
         SplineUtility.GetNearestPoint(spline.Spline, transform.position, out float3 _, out float t);
 
-        if (t >= 0.99)
+        if (t >= finishPerecentage) // TODO: maybe check if we have got back to 0???
         {
             isCompleted = true;
             Debug.Log("IS COMPLETED");
@@ -50,9 +54,6 @@ public class MoveOnSpline : MonoBehaviour
     }
 
     // TODO: use touch
-    // (animate) back to starting position if is not completed
-    // complete if reach end of spline
-    // draw line filling in shape
     // handle multiple shapes
 
     /// <summary>
@@ -76,15 +77,45 @@ public class MoveOnSpline : MonoBehaviour
 
         SplineUtility.GetNearestPoint(spline.Spline, mousePos, out float3 nearest, out float t);
 
-        if (t > lastT && GetDifference(t, lastT) < 0.5)
+        float difference = GetDifference(t, lastT);
+
+        if (t > lastT && difference < 0.5)
         {
-            Debug.Log("greater than last time" + t + lastT);
-            transform.position = nearest;
+            Vector3 newPos = new Vector3(nearest.x, nearest.y, transform.position.z);
+            transform.position = newPos;
+
+            DrawLine(newPos, difference, t);
         }
     }
 
     float GetDifference(float a, float b)
     {
         return Math.Abs(a - b);
+    }
+
+    void DrawLine(Vector3 newPos, float difference, float t)
+    {
+        if (difference < maxDifference && difference > minDifference)
+        {
+            AddLinePosition(newPos);
+        }
+        else if (difference > maxDifference)
+        {
+            float tempT = lastT;
+
+            while (tempT < t)
+            {
+                tempT += maxDifference;
+
+                Vector3 pos = transform.position = SplineUtility.EvaluatePosition(spline.Spline, tempT);
+                AddLinePosition(pos);
+            }
+        }
+    }
+
+    void AddLinePosition(Vector3 pos)
+    {
+        lineRenderer.positionCount++;
+        lineRenderer.SetPosition(lineRenderer.positionCount - 1, pos);
     }
 }
