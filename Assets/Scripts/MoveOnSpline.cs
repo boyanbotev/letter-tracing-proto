@@ -15,13 +15,14 @@ public class MoveOnSpline : MonoBehaviour
     private bool isActive = false;
     private bool isCompleted = false;
     private float lastT = 0;
-    private float minDifference = 0.005f;
     private float maxDifference = 0.02f;
     private float finishPerecentage = 0.98f;
+    [SerializeField] bool shouldLoopAtEnd = false;
 
     private void Awake()
     {
-        transform.position = SplineUtility.EvaluatePosition(spline.Spline, 0);
+        Vector3 pos = SplineUtility.EvaluatePosition(spline.Spline, 0);
+        transform.position = new Vector3(pos.x, pos.y, 0);
         AddLinePosition(transform.position);
     }
 
@@ -44,9 +45,11 @@ public class MoveOnSpline : MonoBehaviour
 
         SplineUtility.GetNearestPoint(spline.Spline, transform.position, out float3 _, out float t);
 
-        if (t >= finishPerecentage) // TODO: maybe check if we have got back to 0???
+        if (t >= finishPerecentage)
         {
             isCompleted = true;
+            if (shouldLoopAtEnd) lineRenderer.loop = true;
+            gameObject.SetActive(false);
             Debug.Log("IS COMPLETED");
         }
 
@@ -69,7 +72,7 @@ public class MoveOnSpline : MonoBehaviour
     }
 
     /// <summary>
-    /// Move node nearest knot in spine if we are going the right direction around the spine.
+    /// Move node to nearest point in spine if we are going the right direction around the spine.
     /// </summary>
     void HandleMouseHold()
     {
@@ -81,7 +84,7 @@ public class MoveOnSpline : MonoBehaviour
 
         if (t > lastT && difference < 0.5)
         {
-            Vector3 newPos = new Vector3(nearest.x, nearest.y, transform.position.z);
+            Vector3 newPos = new Vector3(nearest.x, nearest.y, 0);
             transform.position = newPos;
 
             DrawLine(newPos, difference, t);
@@ -95,7 +98,7 @@ public class MoveOnSpline : MonoBehaviour
 
     void DrawLine(Vector3 newPos, float difference, float t)
     {
-        if (difference < maxDifference && difference > minDifference)
+        if (difference < maxDifference)
         {
             AddLinePosition(newPos);
         }
@@ -107,8 +110,10 @@ public class MoveOnSpline : MonoBehaviour
             {
                 tempT += maxDifference;
 
-                Vector3 pos = transform.position = SplineUtility.EvaluatePosition(spline.Spline, tempT);
-                AddLinePosition(pos);
+                Vector3 pos = SplineUtility.EvaluatePosition(spline.Spline, tempT);
+                Vector3 adaptedPos = new Vector3(pos.x, pos.y, 0);
+                transform.position = adaptedPos;
+                AddLinePosition(adaptedPos);
             }
         }
     }
@@ -116,6 +121,7 @@ public class MoveOnSpline : MonoBehaviour
     void AddLinePosition(Vector3 pos)
     {
         lineRenderer.positionCount++;
-        lineRenderer.SetPosition(lineRenderer.positionCount - 1, pos);
+        Vector3 adaptedPos = new Vector3(pos.x, pos.y, 0);
+        lineRenderer.SetPosition(lineRenderer.positionCount - 1, adaptedPos);
     }
 }
