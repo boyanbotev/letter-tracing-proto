@@ -5,17 +5,14 @@ using UnityEngine;
 using UnityEngine.Splines;
 using Unity.Mathematics;
 using System;
-using UnityEngine.UIElements;
-using Shapes;
 using System.Linq;
 
 public class MoveOnSpline : MonoBehaviour
 {
     [SerializeField] private SplineContainer[] splines;
     private SplineContainer currentSpline;
-    [SerializeField] private LineRenderer lineRenderer;
-    [SerializeField] Polyline[] lines;
-    Polyline currentLine;
+    public BaseLine[] lines;
+    BaseLine currentLine;
 
     private int currentSplineIndex = 0;
     private bool isActive = false;
@@ -31,9 +28,9 @@ public class MoveOnSpline : MonoBehaviour
     private void Awake()
     {
         traversedPoints = new();
-        AddLinePosition(transform.position);
         currentSpline = splines[currentSplineIndex];
         currentLine = lines[currentSplineIndex];
+        AddLinePosition(transform.position);
     }
 
     void Update() {
@@ -56,16 +53,15 @@ public class MoveOnSpline : MonoBehaviour
         }
 
         SplineUtility.GetNearestPoint(currentSpline.Spline, transform.position, out float3 _, out float t);
-        Debug.Log(t);
         
-
         lastT = t;
 
         HandleCompletion(t);
     }
 
     // TODO: use touch
-    // handle multiple shapes
+    // remove artifacts
+    // refactor
 
     /// <summary>
     /// Check if clicking on node object to determine whether we are active.
@@ -139,14 +135,8 @@ public class MoveOnSpline : MonoBehaviour
 
     void AddLinePosition(Vector3 pos)
     {
-        Vector3 adaptedPos = new Vector3(pos.x, pos.y, 0);
-
-        if (currentLine) currentLine.AddPoint(adaptedPos);
-        else if (lineRenderer)
-        {
-            lineRenderer.positionCount++;
-            lineRenderer.SetPosition(lineRenderer.positionCount - 1, adaptedPos);
-        }
+        Vector3 adaptedPos = new(pos.x, pos.y, 0);
+        currentLine.AddPoint(adaptedPos);
     }
 
     void AddTraversedKnots()
@@ -167,15 +157,10 @@ public class MoveOnSpline : MonoBehaviour
         {
             currentSplineIndex++;
 
-            Debug.Log(currentSplineIndex + " " + splines.Length);
             if (currentSplineIndex >= splines.Length)
             {
                 isCompleted = true;
-                if (shouldLoopAtEnd)
-                {
-                    if (currentLine) currentLine.Closed = true;
-                    if (lineRenderer) lineRenderer.loop = true;
-                }
+                if (shouldLoopAtEnd) currentLine.SetClosed(true);
                 gameObject.SetActive(false);
                 Debug.Log("IS COMPLETED");
             }
